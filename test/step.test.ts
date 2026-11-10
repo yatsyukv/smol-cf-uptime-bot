@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseChecks } from '../src/checks.ts';
+import { isDue, parseChecks } from '../src/checks.ts';
 import { REMINDER_MS } from '../src/constants.ts';
 import { canonical, parseState, stateToSave } from '../src/persist.ts';
 import { step } from '../src/step.ts';
@@ -55,15 +55,18 @@ describe('zoned clock', () => {
 });
 
 describe('parseChecks', () => {
-  it('reads a name/url list', () => {
+  it('reads a name/url list and defaults everyMinutes to 5', () => {
     expect(
       parseChecks(
         JSON.stringify([
           { name: 'api', url: 'https://api.example.com/healthz' },
-          { name: 'web', url: 'http://localhost:3000/healthz' },
+          { name: 'web', url: 'http://localhost:3000/healthz', everyMinutes: 1 },
         ]),
       ),
-    ).toHaveLength(2);
+    ).toEqual([
+      { name: 'api', url: 'https://api.example.com/healthz', everyMinutes: 5 },
+      { name: 'web', url: 'http://localhost:3000/healthz', everyMinutes: 1 },
+    ]);
   });
 
   it('rejects empty, reserved, and bad urls', () => {
@@ -74,6 +77,19 @@ describe('parseChecks', () => {
     expect(() =>
       parseChecks(JSON.stringify([{ name: 'api', url: 'ftp://x' }])),
     ).toThrow(/http/);
+    expect(() =>
+      parseChecks(JSON.stringify([{ name: 'api', url: 'https://x', everyMinutes: 0 }])),
+    ).toThrow(/everyMinutes/);
+  });
+});
+
+describe('isDue', () => {
+  it('fires on epoch-aligned minutes for the interval', () => {
+    const onFive = new Date('2026-01-15T12:00:00.000Z');
+    const offFive = new Date('2026-01-15T12:01:00.000Z');
+    expect(isDue(5, onFive)).toBe(true);
+    expect(isDue(5, offFive)).toBe(false);
+    expect(isDue(1, offFive)).toBe(true);
   });
 });
 
@@ -272,6 +288,20 @@ describe('step', () => {
     const { state, messages } = step(empty(), [pass()], T0);
     expect(messages).toEqual([]);
     expect(stateToSave(empty(), state, true)).toBeNull();
+  });
+
+  it('skipped interval keeps fail count and does not alert', () => {
+    const first = step(empty(), [fail()], T0, { configuredNames: ['api'] });
+    const skipped = step(first.state, [], new Date(T0.getTime() + 60_000), {
+      configuredNames: ['api'],
+    });
+    expect(skipped.messages).toEqual([]);
+    expect(skipped.state.api).toEqual({
+      status: 'up',
+      fails: 1,
+      downSince: null,
+      lastAlertAt: null,
+    });
   });
 });
 

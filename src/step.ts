@@ -50,16 +50,21 @@ export function step(
   const messages: Message[] = [];
   const iso = now.toISOString();
   const next: State = { lastSummaryDate: state.lastSummaryDate ?? null };
-  const seen = new Set(results.map((r) => r.name));
+  const probed = new Set(results.map((r) => r.name));
+  const configured = new Set(options.configuredNames ?? results.map((r) => r.name));
   const tz = options.tz || DEFAULT_SUMMARY_TZ;
   const summaryHour = options.summaryHour ?? DEFAULT_SUMMARY_HOUR;
 
   for (const [name, value] of Object.entries(state)) {
     if (name === 'lastSummaryDate' || !isCheckState(value)) continue;
-    if (seen.has(name)) continue;
-    if (value.status === 'down') {
-      messages.push(upMessage(name, null, value.downSince, now));
+    if (probed.has(name)) continue;
+    if (!configured.has(name)) {
+      if (value.status === 'down') {
+        messages.push(upMessage(name, null, value.downSince, now));
+      }
+      continue;
     }
+    if (keep(value)) next[name] = value;
   }
 
   for (const result of results) {
@@ -107,7 +112,18 @@ export function step(
 
   const zoned = zonedParts(now, tz);
   if (zoned.hour >= summaryHour && next.lastSummaryDate !== zoned.date) {
-    messages.push(summaryMessage(results));
+    const byName = new Map(results.map((r) => [r.name, r]));
+    const names = options.configuredNames ?? results.map((r) => r.name);
+    const rows = names.map((name) => {
+      const probedResult = byName.get(name);
+      if (probedResult) return probedResult;
+      const check = readCheck(next, name);
+      if (check.status === 'down') {
+        return { name, url: '', ok: false, reason: 'still down' };
+      }
+      return { name, url: '', ok: true };
+    });
+    messages.push(summaryMessage(rows));
     next.lastSummaryDate = zoned.date;
   }
 

@@ -38,6 +38,13 @@ CHECKS_FILE="${CHECKS_FILE}" node --input-type=module -e '
       console.error(`checks.json[${i}] (${item.name}) needs an http(s) url`);
       process.exit(1);
     }
+    if (item.everyMinutes !== undefined) {
+      const n = typeof item.everyMinutes === "string" ? Number(item.everyMinutes) : item.everyMinutes;
+      if (!Number.isInteger(n) || n < 1) {
+        console.error(`checks.json[${i}] (${item.name}) everyMinutes must be an integer >= 1`);
+        process.exit(1);
+      }
+    }
   }
   console.error(`Using ${data.length} check(s)`);
 '

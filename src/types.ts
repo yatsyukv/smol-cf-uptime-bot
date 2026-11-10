@@ -1,6 +1,7 @@
 export type Check = {
   name: string;
   url: string;
+  everyMinutes: number;
 };
 
 export type CheckResult = {
@@ -35,4 +36,6 @@ export type Message = {
 export type StepOptions = {
   tz?: string;
   summaryHour?: number;
+  /** Full set of configured checks. Names not in `results` this tick are skipped, not removed. */
+  configuredNames?: string[];
 };

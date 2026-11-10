@@ -1,4 +1,4 @@
 [
-  { "name": "api", "url": "https://api.example.com/healthz" },
-  { "name": "web", "url": "https://www.example.com/healthz" }
+  { "name": "api", "url": "https://api.example.com/healthz", "everyMinutes": 5 },
+  { "name": "web", "url": "https://www.example.com/healthz", "everyMinutes": 5 }
 ]

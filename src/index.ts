@@ -1,4 +1,4 @@
-import { parseChecks } from './checks.ts';
+import { isDue, parseChecks } from './checks.ts';
 import { DEFAULT_SUMMARY_HOUR, DEFAULT_SUMMARY_TZ, STATE_KEY } from './constants.ts';
 import { canonical, parseState, stateToSave } from './persist.ts';
 import { probe } from './probe.ts';
@@ -22,11 +22,13 @@ export default {
     const now = new Date();
     const checks = parseChecks(env.CHECKS_JSON);
     const prev = parseState(await env.STATE.get(STATE_KEY));
-    const results = await Promise.all(checks.map((check) => probe(check)));
+    const due = checks.filter((check) => isDue(check.everyMinutes, now));
+    const results = await Promise.all(due.map((check) => probe(check)));
     const hour = Number(env.SUMMARY_HOUR);
     const { state: next, messages } = step(prev, results, now, {
       tz: env.SUMMARY_TZ || DEFAULT_SUMMARY_TZ,
       summaryHour: Number.isFinite(hour) ? hour : DEFAULT_SUMMARY_HOUR,
+      configuredNames: checks.map((check) => check.name),
     });
 
     let sendOk = true;

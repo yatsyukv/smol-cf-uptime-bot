@@ -1,8 +1,8 @@
 # smol-cf-uptime-bot
 
-Cron-only Cloudflare Worker: ping HTTPS health endpoints every minute, Telegram the group when something is down. The public repo has no site-specific hostnames.
+Cron-only Cloudflare Worker: ping HTTPS health endpoints on a per-host schedule (default every 5 minutes), Telegram the group when something is down. The public repo has no site-specific hostnames.
 
-A check is **up** when it returns HTTP 200 within 10 seconds. Checks run in parallel.
+A check is **up** when it returns HTTP 200 within 10 seconds. Due checks run in parallel. The Worker cron still fires every minute so mixed intervals work.
 
 ## Setup
 
@@ -17,7 +17,7 @@ The wizard asks for, in order:
 
 1. **Cloudflare API token** (Workers Scripts Edit + Workers KV Storage Edit)
 2. **Telegram bot token** (BotFather), then **chat id** (add the bot to the group, send `/start`, the wizard can call `getUpdates`)
-3. **Hostnames** — one name + URL per check (blank name to finish)
+3. **Hostnames** — one name + URL per check, and **how often to check** (minutes, default 5; blank name to finish)
 4. Deploy the Worker
 
 That writes gitignored `.env` and `checks.json`, then `wrangler deploy`.
@@ -36,10 +36,12 @@ npm run deploy
 
 ```json
 [
-  { "name": "api", "url": "https://api.example.com/healthz" },
-  { "name": "web", "url": "https://www.example.com/healthz" }
+  { "name": "api", "url": "https://api.example.com/healthz", "everyMinutes": 5 },
+  { "name": "web", "url": "https://www.example.com/healthz", "everyMinutes": 1 }
 ]
 ```
+
+`everyMinutes` defaults to 5 if omitted.
 
 Add or remove a line, then `npm run deploy`. Deploy uploads the list as the Worker var `CHECKS_JSON` (atomic with the script, not committed). Telegram tokens stay Worker secrets (`wrangler secret put` from stdin).
 
@@ -47,7 +49,7 @@ Add or remove a line, then `npm run deploy`. Deploy uploads the list as the Work
 
 One Telegram chat receives:
 
-- **DOWN** after 2 failed runs in a row (name, URL, reason, UTC time)
+- **DOWN** after 2 failed probes in a row (name, URL, reason, UTC time)
 - a **reminder** every 30 minutes while still down
 - **UP** on the first success after DOWN, with downtime length
 - a **daily summary** on the first run at or after 09:00 in `SUMMARY_TZ` (default UTC)

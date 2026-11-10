@@ -91,15 +91,19 @@ if [[ "${keep_checks}" != true ]]; then
   while true; do
     name=""
     url=""
+    every=""
     read -r -p "  name: " name || true
     if [[ -z "${name}" ]]; then
       break
     fi
     read -r -p "  url:  " url || true
-    NAME="${name}" URL="${url}" FILE="${tmp}" node --input-type=module -e '
+    read -r -p "  how often to check (minutes) [5]: " every || true
+    every="${every:-5}"
+    NAME="${name}" URL="${url}" EVERY="${every}" FILE="${tmp}" node --input-type=module -e '
       import { readFileSync, writeFileSync } from "node:fs";
       const name = process.env.NAME;
       const url = process.env.URL;
+      const everyMinutes = Number(process.env.EVERY);
       if (!name || !url || !/^https?:\/\//i.test(url)) {
         console.error("  skip: need a name and an http(s) url");
         process.exit(0);
@@ -108,12 +112,16 @@ if [[ "${keep_checks}" != true ]]; then
         console.error("  skip: lastSummaryDate is reserved");
         process.exit(0);
       }
+      if (!Number.isInteger(everyMinutes) || everyMinutes < 1) {
+        console.error("  skip: interval must be an integer >= 1");
+        process.exit(0);
+      }
       const checks = JSON.parse(readFileSync(process.env.FILE, "utf8"));
       if (checks.some((c) => c.name === name)) {
         console.error("  skip: duplicate name");
         process.exit(0);
       }
-      checks.push({ name, url });
+      checks.push({ name, url, everyMinutes });
       writeFileSync(process.env.FILE, JSON.stringify(checks, null, 2) + "\n");
     '
   done

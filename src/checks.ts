@@ -50,7 +50,7 @@ export function parseChecks(raw: string | null | undefined): Check[] {
   return checks;
 }
 
-/** Cron still fires every minute; probe only when this interval is due. */
+/** Cron fires every 5 minutes; probe only when this interval is due. */
 export function isDue(everyMinutes: number, now: Date): boolean {
   const minute = Math.floor(now.getTime() / 60_000);
   return minute % everyMinutes === 0;

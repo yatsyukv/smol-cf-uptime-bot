@@ -115,7 +115,7 @@ describe('step', () => {
     );
     expect(messages.map((m) => [m.kind, m.name])).toEqual([['down', 'api']]);
     expect(state.web).toBeUndefined();
-    expect(messages[0]?.text).toContain('reason: timeout');
+    expect(messages[0]?.text).toContain('💥 timeout');
   });
 
   it('1 fail → nothing', () => {
@@ -135,9 +135,11 @@ describe('step', () => {
     const { state, messages } = step(first.state, [fail('api', 'HTTP 404')], t1);
 
     expect(kinds(messages)).toEqual(['down']);
-    expect(messages[0]?.text).toContain('DOWN: api');
+    expect(messages[0]?.text).toContain('🔴');
+    expect(messages[0]?.text).toContain('DOWN');
+    expect(messages[0]?.text).toContain('api');
     expect(messages[0]?.text).toContain(API);
-    expect(messages[0]?.text).toContain('reason: HTTP 404');
+    expect(messages[0]?.text).toContain('💥 HTTP 404');
     expect(messages[0]?.text).toContain('2026-01-15 12:01:00 UTC');
     expect(state.api).toEqual({
       status: 'down',
@@ -171,8 +173,9 @@ describe('step', () => {
       at30,
     );
     expect(kinds(messages)).toEqual(['reminder']);
-    expect(messages[0]?.text).toContain('still down: api');
-    expect(messages[0]?.text).toContain('reason: timeout');
+    expect(messages[0]?.text).toContain('🟡');
+    expect(messages[0]?.text).toContain('still down');
+    expect(messages[0]?.text).toContain('💥 timeout');
     expect(messages[0]?.text).toContain('down for: 30m');
     expect(state.api).toMatchObject({
       status: 'down',
@@ -195,7 +198,8 @@ describe('step', () => {
     const { state, messages } = step(downState, [pass()], upAt);
 
     expect(kinds(messages)).toEqual(['up']);
-    expect(messages[0]?.text).toContain('UP: api');
+    expect(messages[0]?.text).toContain('🟢');
+    expect(messages[0]?.text).toContain('UP');
     expect(messages[0]?.text).toContain('downtime: 2m');
     expect(state.api).toBeUndefined();
     expect(canonical(state)).toBe(canonical(empty()));
@@ -214,7 +218,8 @@ describe('step', () => {
 
     const first = step({ lastSummaryDate: null }, results, at9);
     expect(kinds(first.messages)).toEqual(['summary']);
-    expect(first.messages[0]?.text).toBe('daily summary: all 3 up');
+    expect(first.messages[0]?.text).toContain('✨');
+    expect(first.messages[0]?.text).toContain('all 3 up');
     expect(first.state.lastSummaryDate).toBe('2026-01-15');
 
     const again = step(first.state, results, later);
@@ -246,7 +251,8 @@ describe('step', () => {
     );
     expect(kinds(messages)).toEqual(['summary']);
     expect(messages[0]?.text).toContain('1 of 3 down');
-    expect(messages[0]?.text).toContain('web — HTTP 404');
+    expect(messages[0]?.text).toContain('web');
+    expect(messages[0]?.text).toContain('HTTP 404');
   });
 
   it('failed send → retried', () => {
@@ -259,7 +265,7 @@ describe('step', () => {
 
     const retry = step(first.state, [fail('api', 'network error')], t1);
     expect(kinds(retry.messages)).toEqual(['down']);
-    expect(retry.messages[0]?.text).toContain('reason: network error');
+    expect(retry.messages[0]?.text).toContain('💥 network error');
 
     const saved = stateToSave(first.state, attempt.state, true);
     expect(saved).not.toBeNull();

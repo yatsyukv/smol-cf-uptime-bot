@@ -18,7 +18,8 @@ code="$(curl -sS -o "${tmp}" -w '%{http_code}' \
   -d "$(TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID}" node --input-type=module -e '
     process.stdout.write(JSON.stringify({
       chat_id: process.env.TELEGRAM_CHAT_ID,
-      text: "uptime monitor: test message. Cron is armed for every minute.",
+      text: "🚀 <b>uptime monitor</b> is live.\\n⏱ cron every 5 minutes.",
+      parse_mode: "HTML",
       disable_web_page_preview: true,
     }));
   ')" \

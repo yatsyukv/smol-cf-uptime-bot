@@ -64,6 +64,9 @@ npx vitest run
 worker_name="${WORKER_NAME:-smol-cf-uptime}"
 title="${worker_name}-state"
 id="${CLOUDFLARE_KV_NAMESPACE_ID:-}"
+if [[ "${id}" == "00000000000000000000000000000000" ]]; then
+  id=""
+fi
 
 if [[ -z "${id}" ]]; then
   list_out="$(npx wrangler kv namespace list 2>/dev/null || true)"

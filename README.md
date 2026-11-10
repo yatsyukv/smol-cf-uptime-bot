@@ -2,7 +2,7 @@
 
 Ping your HTTPS health endpoints from a Cloudflare Worker and get Telegram alerts when something is down. Nothing site-specific is committed; you configure hosts locally.
 
-A host is **up** if it returns HTTP 200 within 10 seconds.
+A host is **up** if it returns HTTP 200 within 10 seconds. The Worker runs every 5 minutes.
 
 ## Use
 
@@ -64,4 +64,4 @@ After deploy: `npm run test-message` to ping the group, `npx wrangler tail -c .w
 
 ## Alerts
 
-Telegram gets **DOWN** after 2 failed probes, a reminder every 30 minutes while down, **UP** with downtime, and a daily summary at 09:00 (`SUMMARY_TZ`, default UTC).
+Telegram gets **DOWN** after 2 failed probes, a reminder every 30 minutes while down, **UP** with downtime, and a daily summary at 09:00 (`SUMMARY_TZ`, default UTC). Messages use emoji + bold HTML.

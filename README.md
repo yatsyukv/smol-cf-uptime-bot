@@ -1,34 +1,58 @@
-# WinWin uptime monitor
+# smol-cf-uptime-bot
 
-Cloudflare Worker that pings WinWin health endpoints every minute and sends Telegram alerts when something is down. It runs on Cloudflare, not on the production Hetzner/Dokploy host.
+Cron-only Cloudflare Worker: ping HTTPS health endpoints every minute, Telegram the group when something is down. The public repo has no site-specific hostnames.
 
-A check is up when it returns HTTP 200 within 10 seconds. Checks run in parallel.
+A check is **up** when it returns HTTP 200 within 10 seconds. Checks run in parallel.
+
+## Setup
+
+```bash
+git clone https://github.com/yatsyukv/smol-cf-uptime-bot.git
+cd smol-cf-uptime-bot
+npm install
+npm run setup
+```
+
+The wizard asks for, in order:
+
+1. **Cloudflare API token** (Workers Scripts Edit + Workers KV Storage Edit)
+2. **Telegram bot token** (BotFather), then **chat id** (add the bot to the group, send `/start`, the wizard can call `getUpdates`)
+3. **Hostnames** — one name + URL per check (blank name to finish)
+4. Deploy the Worker
+
+That writes gitignored `.env` and `checks.json`, then `wrangler deploy`.
+
+Non-interactive:
+
+```bash
+cp .env.example .env          # fill tokens
+cp checks.example.json checks.json   # fill your URLs
+npm run deploy
+```
+
+## Hostnames
+
+`checks.json` is the source of truth and is gitignored, so clones of this public repo stay generic:
+
+```json
+[
+  { "name": "api", "url": "https://api.example.com/healthz" },
+  { "name": "web", "url": "https://www.example.com/healthz" }
+]
+```
+
+Add or remove a line, then `npm run deploy`. Deploy uploads the list as the Worker var `CHECKS_JSON` (atomic with the script, not committed). Telegram tokens stay Worker secrets (`wrangler secret put` from stdin).
 
 ## Alerts
 
-One Telegram group receives:
+One Telegram chat receives:
 
 - **DOWN** after 2 failed runs in a row (name, URL, reason, UTC time)
 - a **reminder** every 30 minutes while still down
 - **UP** on the first success after DOWN, with downtime length
-- a **daily summary** on the first run at or after 09:00 Europe/Kyiv (`all N up`, or a list of what is down)
+- a **daily summary** on the first run at or after 09:00 in `SUMMARY_TZ` (default UTC)
 
 If Telegram send fails, the run does not mark the alert as sent, so the next minute retries. KV is written only when state actually changes (free plan: 1000 writes/day).
-
-## Add a project
-
-One line in `src/checks.ts`:
-
-```ts
-export const CHECKS: Check[] = [
-  { name: 'events', url: 'https://events.winwin.education/healthz' },
-  { name: 'website', url: 'https://www.winwin.education/healthz' },
-  { name: 'core', url: 'https://api.winwin.education/healthz' },
-  { name: 'new-service', url: 'https://new.winwin.education/healthz' },
-];
-```
-
-Then `npm run deploy`.
 
 ## Secrets
 
@@ -36,36 +60,17 @@ Never commit these. Never print them.
 
 | Name | Where | Used for |
 | --- | --- | --- |
-| `CLOUDFLARE_API_TOKEN` | `~/.config/winwin-uptime.env` | `wrangler deploy` (Workers Scripts Edit + Workers KV Storage Edit) |
-| `TELEGRAM_BOT_TOKEN` | same file, and Worker secret | Telegram Bot API |
-| `TELEGRAM_CHAT_ID` | same file, and Worker secret | target group |
-| `CLOUDFLARE_ACCOUNT_ID` | optional, same file | only if the token can see more than one account |
+| `CLOUDFLARE_API_TOKEN` | `.env` | `wrangler deploy` |
+| `TELEGRAM_BOT_TOKEN` | `.env` and Worker secret | Telegram Bot API |
+| `TELEGRAM_CHAT_ID` | `.env` and Worker secret | target chat |
+| `CLOUDFLARE_ACCOUNT_ID` | optional, `.env` | only if the token can see more than one account |
 
-Create a BotFather bot, add it to the group, send `/start` in the group, then:
-
-```bash
-cp winwin-uptime.env.example ~/.config/winwin-uptime.env
-# fill CLOUDFLARE_API_TOKEN and TELEGRAM_BOT_TOKEN
-npm run chat-id
-# write TELEGRAM_CHAT_ID into the env file
-```
-
-`scripts/deploy.sh` sets Worker secrets with `wrangler secret put` from stdin (not argv).
-
-## Deploy
+The worker has no public route (`workers_dev = false`); cron `* * * * *` is the only trigger. After deploy:
 
 ```bash
-npm install
-npm test
-npm run deploy
 npm run test-message
-set -a && source ~/.config/winwin-uptime.env && set +a
-npx wrangler tail
+npx wrangler tail -c .wrangler-deploy.jsonc
 ```
-
-Requires `~/.config/winwin-uptime.env`. The first deploy creates a KV namespace and writes its id into `wrangler.jsonc` (not a secret; commit it). The worker has no public route (`workers_dev = false`); cron `* * * * *` is the only trigger.
-
-To confirm a DOWN/UP cycle, temporarily add a line for `https://www.winwin.education/healthz-broken` (404), deploy, wait ~2 minutes, then remove the line and deploy again.
 
 ## Tests
 

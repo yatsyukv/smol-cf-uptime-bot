@@ -1,4 +1,9 @@
-import { FAIL_THRESHOLD, REMINDER_MS, SUMMARY_HOUR } from './constants.ts';
+import {
+  DEFAULT_SUMMARY_HOUR,
+  DEFAULT_SUMMARY_TZ,
+  FAIL_THRESHOLD,
+  REMINDER_MS,
+} from './constants.ts';
 import {
   downMessage,
   reminderMessage,
@@ -6,8 +11,14 @@ import {
   upMessage,
 } from './messages.ts';
 import { isCheckState } from './persist.ts';
-import { kyivParts } from './time.ts';
-import type { CheckResult, CheckState, Message, State } from './types.ts';
+import { zonedParts } from './time.ts';
+import type {
+  CheckResult,
+  CheckState,
+  Message,
+  State,
+  StepOptions,
+} from './types.ts';
 
 const HEALTHY: CheckState = Object.freeze({
   status: 'up',
@@ -34,11 +45,14 @@ export function step(
   state: State,
   results: CheckResult[],
   now: Date,
+  options: StepOptions = {},
 ): { state: State; messages: Message[] } {
   const messages: Message[] = [];
   const iso = now.toISOString();
   const next: State = { lastSummaryDate: state.lastSummaryDate ?? null };
   const seen = new Set(results.map((r) => r.name));
+  const tz = options.tz || DEFAULT_SUMMARY_TZ;
+  const summaryHour = options.summaryHour ?? DEFAULT_SUMMARY_HOUR;
 
   for (const [name, value] of Object.entries(state)) {
     if (name === 'lastSummaryDate' || !isCheckState(value)) continue;
@@ -91,10 +105,10 @@ export function step(
     if (keep(check)) next[result.name] = check;
   }
 
-  const kyiv = kyivParts(now);
-  if (kyiv.hour >= SUMMARY_HOUR && next.lastSummaryDate !== kyiv.date) {
+  const zoned = zonedParts(now, tz);
+  if (zoned.hour >= summaryHour && next.lastSummaryDate !== zoned.date) {
     messages.push(summaryMessage(results));
-    next.lastSummaryDate = kyiv.date;
+    next.lastSummaryDate = zoned.date;
   }
 
   return { state: next, messages };

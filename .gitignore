@@ -76,6 +76,10 @@ web_modules/
 .dev.vars.*
 .mf/
 worker-configuration.d.ts
+.wrangler-deploy.jsonc
+
+# Local monitor config (hostnames + keys)
+checks.json
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache

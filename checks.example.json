@@ -1,0 +1,4 @@
+[
+  { "name": "api", "url": "https://api.example.com/healthz" },
+  { "name": "web", "url": "https://www.example.com/healthz" }
+]

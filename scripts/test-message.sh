@@ -2,9 +2,10 @@
 set -euo pipefail
 set +x
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export ROOT
 # shellcheck disable=SC1091
-source "${root}/scripts/lib.sh"
+source "${ROOT}/scripts/lib.sh"
 load_env
 require TELEGRAM_BOT_TOKEN
 require TELEGRAM_CHAT_ID
@@ -17,7 +18,7 @@ code="$(curl -sS -o "${tmp}" -w '%{http_code}' \
   -d "$(TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID}" node --input-type=module -e '
     process.stdout.write(JSON.stringify({
       chat_id: process.env.TELEGRAM_CHAT_ID,
-      text: "WinWin uptime monitor: test message. Cron is armed for every minute.",
+      text: "uptime monitor: test message. Cron is armed for every minute.",
       disable_web_page_preview: true,
     }));
   ')" \

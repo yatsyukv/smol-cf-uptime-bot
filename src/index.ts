@@ -1,5 +1,5 @@
-import { CHECKS } from './checks.ts';
-import { STATE_KEY } from './constants.ts';
+import { parseChecks } from './checks.ts';
+import { DEFAULT_SUMMARY_HOUR, DEFAULT_SUMMARY_TZ, STATE_KEY } from './constants.ts';
 import { canonical, parseState, stateToSave } from './persist.ts';
 import { probe } from './probe.ts';
 import { step } from './step.ts';
@@ -9,6 +9,9 @@ export interface Env {
   STATE: KVNamespace;
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_CHAT_ID: string;
+  CHECKS_JSON: string;
+  SUMMARY_TZ: string;
+  SUMMARY_HOUR: string;
 }
 
 export default {
@@ -17,9 +20,14 @@ export default {
     env: Env,
   ): Promise<void> {
     const now = new Date();
+    const checks = parseChecks(env.CHECKS_JSON);
     const prev = parseState(await env.STATE.get(STATE_KEY));
-    const results = await Promise.all(CHECKS.map((check) => probe(check)));
-    const { state: next, messages } = step(prev, results, now);
+    const results = await Promise.all(checks.map((check) => probe(check)));
+    const hour = Number(env.SUMMARY_HOUR);
+    const { state: next, messages } = step(prev, results, now, {
+      tz: env.SUMMARY_TZ || DEFAULT_SUMMARY_TZ,
+      summaryHour: Number.isFinite(hour) ? hour : DEFAULT_SUMMARY_HOUR,
+    });
 
     let sendOk = true;
     for (const message of messages) {

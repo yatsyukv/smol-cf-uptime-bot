@@ -2,11 +2,15 @@
 set -euo pipefail
 set +x
 
-root="$(cd "$(dirname "$0")/.." && pwd)"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+export ROOT
 # shellcheck disable=SC1091
-source "${root}/scripts/lib.sh"
-load_env
-require TELEGRAM_BOT_TOKEN
+source "${ROOT}/scripts/lib.sh"
+
+if [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]]; then
+  load_env
+  require TELEGRAM_BOT_TOKEN
+fi
 
 tmp="$(mktemp)"
 trap 'rm -f "${tmp}"' EXIT
@@ -28,7 +32,6 @@ UPDATES_FILE="${tmp}" node --input-type=module -e '
   }
   const chats = new Map();
   for (const update of data.result ?? []) {
-    const msg = update.message || update.channel_post || update.my_chat_member?.chat && update;
     const chat =
       update.message?.chat ||
       update.channel_post?.chat ||

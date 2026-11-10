@@ -16,7 +16,7 @@ export async function probe(check: Check): Promise<CheckResult> {
       method: 'GET',
       redirect: 'manual',
       signal: AbortSignal.timeout(CHECK_TIMEOUT_MS),
-      headers: { 'user-agent': 'winwin-uptime-monitor' },
+      headers: { 'user-agent': 'smol-cf-uptime-bot' },
     });
     if (res.status === 200) return { name: check.name, url: check.url, ok: true };
     return {

@@ -1,12 +1,15 @@
 # shellcheck shell=bash
 # Shared helpers. Never print secret values.
+# Caller must set ROOT to the repo root before sourcing.
 
-ENV_FILE="${WINWIN_UPTIME_ENV:-${HOME}/.config/winwin-uptime.env}"
+ENV_FILE="${UPTIME_ENV:-${ROOT}/.env}"
+CHECKS_FILE="${UPTIME_CHECKS:-${ROOT}/checks.json}"
+DEPLOY_CONFIG="${ROOT}/.wrangler-deploy.jsonc"
 
 load_env() {
   if [[ ! -f "${ENV_FILE}" ]]; then
     echo "Missing ${ENV_FILE}" >&2
-    echo "Copy winwin-uptime.env.example there and fill in the values." >&2
+    echo "Run npm run setup, or copy .env.example to .env and fill it in." >&2
     exit 1
   fi
   set -a
@@ -21,4 +24,13 @@ require() {
     echo "Missing ${name} in ${ENV_FILE}" >&2
     exit 1
   fi
+}
+
+yes_no() {
+  local prompt="$1"
+  local default="${2:-Y}"
+  local ans
+  read -r -p "${prompt} " ans || true
+  ans="${ans:-$default}"
+  [[ "${ans}" == [Yy]* ]]
 }

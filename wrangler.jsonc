@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "winwin-uptime",
+  "name": "smol-cf-uptime",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-10",
   "workers_dev": false,

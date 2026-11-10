@@ -31,3 +31,8 @@ export type Message = {
   name?: string;
   text: string;
 };
+
+export type StepOptions = {
+  tz?: string;
+  summaryHour?: number;
+};

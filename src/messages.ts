@@ -54,10 +54,10 @@ export function summaryMessage(results: CheckResult[]): Message {
   const n = results.length;
   const down = results.filter((r) => !r.ok);
   if (down.length === 0) {
-    return { kind: 'summary', text: `WinWin daily summary: all ${n} up` };
+    return { kind: 'summary', text: `daily summary: all ${n} up` };
   }
   const lines = [
-    `WinWin daily summary: ${down.length} of ${n} down`,
+    `daily summary: ${down.length} of ${n} down`,
     ...down.map((r) => `• ${r.name} — ${r.reason ?? 'unknown'} (${r.url})`),
   ];
   return { kind: 'summary', text: lines.join('\n') };

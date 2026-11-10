@@ -6,6 +6,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
+    "setup": "bash scripts/setup.sh",
     "deploy": "bash scripts/deploy.sh",
     "tail": "wrangler tail",
     "chat-id": "bash scripts/get-chat-id.sh",

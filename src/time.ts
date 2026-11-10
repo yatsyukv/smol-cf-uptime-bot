@@ -1,14 +1,12 @@
-import { SUMMARY_TZ } from './constants.ts';
-
-export type KyivParts = {
+export type ZonedParts = {
   date: string;
   hour: number;
   minute: number;
 };
 
-export function kyivParts(now: Date): KyivParts {
+export function zonedParts(now: Date, timeZone: string): ZonedParts {
   const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone: SUMMARY_TZ,
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

@@ -16,11 +16,26 @@ npm run setup
 The wizard asks for:
 
 1. **Cloudflare API token** — Workers Scripts Edit + Workers KV Storage Edit
-2. **Telegram bot token** (BotFather) and **chat id** — add the bot to the group, send `/start`; the wizard can look the id up
+2. **Telegram bot token** (BotFather) and **chat id** — see below
 3. **Each hostname** — name, URL, and how often to check (minutes, default 5)
 4. Deploy
 
 That writes gitignored `.env` and `checks.json`, then deploys the Worker.
+
+## Chat id
+
+Do not forward or share the group to another “get id” bot. Telegram will say there is nothing to share.
+
+1. Add **your** bot to the group and make it an admin.
+2. In BotFather: `/setprivacy` → **Disable** for that bot.
+3. In the group send `/start@YourBotUsername` (one command).
+4. Put the bot token in `.env` as `TELEGRAM_BOT_TOKEN` and run:
+
+```bash
+npm run chat-id
+```
+
+Use the **negative** `chat_id` (groups look like `-100…`). If the table is empty, send `/start@YourBotUsername` again and rerun immediately — opening `getUpdates` in a browser first consumes the events.
 
 ## Add a check
 

@@ -75,67 +75,28 @@ prompt WORKER_NAME "Worker name" "${WORKER_NAME:-smol-cf-uptime}"
 prompt SUMMARY_TZ "Daily summary timezone" "${SUMMARY_TZ:-UTC}"
 prompt SUMMARY_HOUR "Daily summary hour (0-23 in that timezone)" "${SUMMARY_HOUR:-9}"
 
-keep_checks=false
 if [[ -f "${CHECKS_FILE}" ]]; then
   echo "Existing ${CHECKS_FILE}:"
   cat "${CHECKS_FILE}"
   if yes_no "Keep these checks? [Y/n]" Y; then
-    keep_checks=true
-  fi
-fi
-
-if [[ "${keep_checks}" != true ]]; then
-  echo "HTTP checks (blank name to finish). A check is up on HTTP 200 within 10s."
-  tmp="$(mktemp)"
-  echo '[]' > "${tmp}"
-  while true; do
-    name=""
-    url=""
-    every=""
-    read -r -p "  name: " name || true
-    if [[ -z "${name}" ]]; then
-      break
+    if yes_no "Add more checks? [y/N]" N; then
+      append_checks "${CHECKS_FILE}" >/dev/null
     fi
-    read -r -p "  url:  " url || true
-    read -r -p "  how often to check (minutes) [5]: " every || true
-    every="${every:-5}"
-    NAME="${name}" URL="${url}" EVERY="${every}" FILE="${tmp}" node --input-type=module -e '
-      import { readFileSync, writeFileSync } from "node:fs";
-      const name = process.env.NAME;
-      const url = process.env.URL;
-      const everyMinutes = Number(process.env.EVERY);
-      if (!name || !url || !/^https?:\/\//i.test(url)) {
-        console.error("  skip: need a name and an http(s) url");
-        process.exit(0);
-      }
-      if (name === "lastSummaryDate") {
-        console.error("  skip: lastSummaryDate is reserved");
-        process.exit(0);
-      }
-      if (!Number.isInteger(everyMinutes) || everyMinutes < 1) {
-        console.error("  skip: interval must be an integer >= 1");
-        process.exit(0);
-      }
-      const checks = JSON.parse(readFileSync(process.env.FILE, "utf8"));
-      if (checks.some((c) => c.name === name)) {
-        console.error("  skip: duplicate name");
-        process.exit(0);
-      }
-      checks.push({ name, url, everyMinutes });
-      writeFileSync(process.env.FILE, JSON.stringify(checks, null, 2) + "\n");
-    '
-  done
-  count="$(FILE="${tmp}" node --input-type=module -e '
-    import { readFileSync } from "node:fs";
-    const checks = JSON.parse(readFileSync(process.env.FILE, "utf8"));
-    process.stdout.write(String(checks.length));
-  ')"
-  if [[ "${count}" -eq 0 ]]; then
-    rm -f "${tmp}"
+  else
+    echo '[]' > "${CHECKS_FILE}"
+    added="$(append_checks "${CHECKS_FILE}")"
+    if [[ "${added}" -eq 0 ]]; then
+      echo "Need at least one check." >&2
+      exit 1
+    fi
+  fi
+else
+  added="$(append_checks "${CHECKS_FILE}")"
+  if [[ "${added}" -eq 0 ]]; then
+    rm -f "${CHECKS_FILE}"
     echo "Need at least one check." >&2
     exit 1
   fi
-  mv "${tmp}" "${CHECKS_FILE}"
 fi
 
 export CLOUDFLARE_API_TOKEN TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID

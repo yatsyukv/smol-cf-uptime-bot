@@ -22,7 +22,13 @@ The wizard asks for:
 
 That writes gitignored `.env` and `checks.json`, then deploys the Worker.
 
-To change hosts later, edit `checks.json` and run `npm run deploy` again.
+## Add a check
+
+```bash
+npm run add-check
+```
+
+That appends to `checks.json` (name, URL, interval) and can deploy. Or add a line yourself and `npm run deploy`:
 
 ```json
 [

@@ -7,6 +7,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "setup": "bash scripts/setup.sh",
+    "add-check": "bash scripts/add-check.sh",
     "deploy": "bash scripts/deploy.sh",
     "tail": "wrangler tail",
     "chat-id": "bash scripts/get-chat-id.sh",

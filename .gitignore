@@ -70,6 +70,17 @@ web_modules/
 .env.*
 !.env.example
 
+# Wrangler
+.wrangler/
+.dev.vars
+.dev.vars.*
+.mf/
+worker-configuration.d.ts
+.wrangler-deploy.jsonc
+
+# Local monitor config (hostnames + keys)
+checks.json
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

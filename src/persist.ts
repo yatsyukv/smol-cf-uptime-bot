@@ -1,6 +1,7 @@
+import { isMetaKey } from './constants.ts';
 import type { CheckState, State } from './types.ts';
 
-const EMPTY: State = { lastSummaryDate: null };
+const EMPTY: State = { lastSummaryDate: null, lastRunAt: null };
 
 export function isCheckState(value: unknown): value is CheckState {
   if (typeof value !== 'object' || value === null) return false;
@@ -26,9 +27,13 @@ export function parseState(raw: string | null): State {
         typeof obj.lastSummaryDate === 'string' || obj.lastSummaryDate === null
           ? obj.lastSummaryDate
           : null,
+      lastRunAt:
+        typeof obj.lastRunAt === 'string' || obj.lastRunAt === null
+          ? obj.lastRunAt
+          : null,
     };
     for (const [key, v] of Object.entries(obj)) {
-      if (key === 'lastSummaryDate') continue;
+      if (isMetaKey(key)) continue;
       if (isCheckState(v)) state[key] = v;
     }
     return state;
@@ -39,10 +44,11 @@ export function parseState(raw: string | null): State {
 
 export function canonical(state: State): string {
   const names = Object.keys(state)
-    .filter((k) => k !== 'lastSummaryDate')
+    .filter((k) => !isMetaKey(k))
     .sort();
   const out: Record<string, unknown> = {
     lastSummaryDate: state.lastSummaryDate ?? null,
+    lastRunAt: state.lastRunAt ?? null,
   };
   for (const name of names) out[name] = state[name];
   return JSON.stringify(out);

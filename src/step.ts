@@ -2,6 +2,7 @@ import {
   DEFAULT_SUMMARY_HOUR,
   DEFAULT_SUMMARY_TZ,
   FAIL_THRESHOLD,
+  isMetaKey,
   REMINDER_MS,
 } from './constants.ts';
 import {
@@ -49,14 +50,17 @@ export function step(
 ): { state: State; messages: Message[] } {
   const messages: Message[] = [];
   const iso = now.toISOString();
-  const next: State = { lastSummaryDate: state.lastSummaryDate ?? null };
+  const next: State = {
+    lastSummaryDate: state.lastSummaryDate ?? null,
+    lastRunAt: iso,
+  };
   const probed = new Set(results.map((r) => r.name));
   const configured = new Set(options.configuredNames ?? results.map((r) => r.name));
   const tz = options.tz || DEFAULT_SUMMARY_TZ;
   const summaryHour = options.summaryHour ?? DEFAULT_SUMMARY_HOUR;
 
   for (const [name, value] of Object.entries(state)) {
-    if (name === 'lastSummaryDate' || !isCheckState(value)) continue;
+    if (isMetaKey(name) || !isCheckState(value)) continue;
     if (probed.has(name)) continue;
     if (!configured.has(name)) {
       if (value.status === 'down') {
@@ -123,7 +127,7 @@ export function step(
       }
       return { name, url: '', ok: true };
     });
-    messages.push(summaryMessage(rows));
+    messages.push(summaryMessage(rows, now));
     next.lastSummaryDate = zoned.date;
   }
 

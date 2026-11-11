@@ -1,4 +1,4 @@
-import { DEFAULT_EVERY_MINUTES, RESERVED_CHECK_NAME } from './constants.ts';
+import { DEFAULT_EVERY_MINUTES, isMetaKey } from './constants.ts';
 import type { Check } from './types.ts';
 
 export function parseEveryMinutes(value: unknown, label: string): number {
@@ -33,8 +33,8 @@ export function parseChecks(raw: string | null | undefined): Check[] {
     if (typeof name !== 'string' || !name.trim()) {
       throw new Error(`check ${i} needs a name`);
     }
-    if (name === RESERVED_CHECK_NAME) {
-      throw new Error(`check name ${RESERVED_CHECK_NAME} is reserved`);
+    if (isMetaKey(name)) {
+      throw new Error(`check name ${name} is reserved`);
     }
     if (seen.has(name)) throw new Error(`duplicate check name: ${name}`);
     if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {

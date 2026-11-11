@@ -62,8 +62,8 @@ append_checks() {
         console.error("  skip: need a name and an http(s) url");
         process.exit(2);
       }
-      if (name === "lastSummaryDate") {
-        console.error("  skip: lastSummaryDate is reserved");
+      if (name === "lastSummaryDate" || name === "lastRunAt") {
+        console.error("  skip: that name is reserved");
         process.exit(2);
       }
       if (!Number.isInteger(everyMinutes) || everyMinutes < 1) {

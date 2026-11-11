@@ -30,8 +30,8 @@ CHECKS_FILE="${CHECKS_FILE}" node --input-type=module -e '
       console.error(`checks.json[${i}] needs a name`);
       process.exit(1);
     }
-    if (item.name === "lastSummaryDate") {
-      console.error("check name lastSummaryDate is reserved");
+    if (item.name === "lastSummaryDate" || item.name === "lastRunAt") {
+      console.error(`check name ${item.name} is reserved`);
       process.exit(1);
     }
     if (typeof item.url !== "string" || !/^https?:\/\//i.test(item.url)) {

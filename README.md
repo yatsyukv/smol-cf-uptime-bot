@@ -62,6 +62,10 @@ npm run deploy
 
 After deploy: `npm run test-message` to ping the group, `npx wrangler tail -c .wrangler-deploy.jsonc` to watch cron.
 
+## Status
+
+`npm run status` reads the Worker’s KV state and prints a Telegram-style card: last heartbeat (`lastRunAt`, written every 5-minute tick) plus each configured check. Use it when a daily summary is missing — that means the monitor itself did not run.
+
 ## Alerts
 
-Telegram gets **DOWN** after 2 failed probes, a reminder every 30 minutes while down, **UP** with downtime, and a daily summary at 09:00 (`SUMMARY_TZ`, default UTC). Messages use emoji + bold HTML.
+Telegram gets **DOWN** after 2 failed probes, a reminder every 30 minutes while down, **UP** with downtime, and a daily summary at 09:00 (`SUMMARY_TZ`, default UTC) including a last-check timestamp. The Worker writes `lastRunAt` every tick so a missing 09:00 summary means the monitor itself is down. Messages use emoji + bold HTML.

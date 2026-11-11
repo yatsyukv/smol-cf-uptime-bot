@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { isDue, parseChecks } from '../src/checks.ts';
 import { REMINDER_MS } from '../src/constants.ts';
-import { canonical, parseState, stateToSave } from '../src/persist.ts';
+import { statusMessage, stripHtml } from '../src/messages.ts';
+import { parseState, stateToSave } from '../src/persist.ts';
 import { step } from '../src/step.ts';
 import { zonedParts } from '../src/time.ts';
 import type { CheckResult, State } from '../src/types.ts';
@@ -13,7 +14,7 @@ const API = 'https://api.example.com/healthz';
 const WEB = 'https://www.example.com/healthz';
 
 function empty(): State {
-  return { lastSummaryDate: TODAY };
+  return { lastSummaryDate: TODAY, lastRunAt: null };
 }
 
 function fail(
@@ -73,6 +74,9 @@ describe('parseChecks', () => {
     expect(() => parseChecks('[]')).toThrow(/non-empty/);
     expect(() =>
       parseChecks(JSON.stringify([{ name: 'lastSummaryDate', url: 'https://x' }])),
+    ).toThrow(/reserved/);
+    expect(() =>
+      parseChecks(JSON.stringify([{ name: 'lastRunAt', url: 'https://x' }])),
     ).toThrow(/reserved/);
     expect(() =>
       parseChecks(JSON.stringify([{ name: 'api', url: 'ftp://x' }])),
@@ -153,6 +157,7 @@ describe('step', () => {
     const downAt = T0;
     const downState: State = {
       lastSummaryDate: TODAY,
+      lastRunAt: downAt.toISOString(),
       api: {
         status: 'down',
         fails: 2,
@@ -164,7 +169,8 @@ describe('step', () => {
     const before = new Date(downAt.getTime() + REMINDER_MS - 1);
     const early = step(downState, [fail('api', 'timeout')], before);
     expect(kinds(early.messages)).toEqual([]);
-    expect(canonical(early.state)).toBe(canonical(downState));
+    expect(early.state.api).toEqual(downState.api);
+    expect(early.state.lastRunAt).toBe(before.toISOString());
 
     const at30 = new Date(downAt.getTime() + REMINDER_MS);
     const { state, messages } = step(
@@ -187,6 +193,7 @@ describe('step', () => {
     const downAt = T0;
     const downState: State = {
       lastSummaryDate: TODAY,
+      lastRunAt: downAt.toISOString(),
       api: {
         status: 'down',
         fails: 2,
@@ -202,7 +209,7 @@ describe('step', () => {
     expect(messages[0]?.text).toContain('UP');
     expect(messages[0]?.text).toContain('downtime: 2m');
     expect(state.api).toBeUndefined();
-    expect(canonical(state)).toBe(canonical(empty()));
+    expect(state.lastRunAt).toBe(upAt.toISOString());
   });
 
   it('summary once a day', () => {
@@ -212,15 +219,17 @@ describe('step', () => {
     const nextMorning = new Date('2026-01-16T09:00:00.000Z');
     const results = [pass('api'), pass('web', WEB), pass('core')];
 
-    const tooEarly = step({ lastSummaryDate: null }, results, before9);
+    const tooEarly = step({ lastSummaryDate: null, lastRunAt: null }, results, before9);
     expect(kinds(tooEarly.messages)).toEqual([]);
     expect(tooEarly.state.lastSummaryDate).toBeNull();
 
-    const first = step({ lastSummaryDate: null }, results, at9);
+    const first = step({ lastSummaryDate: null, lastRunAt: null }, results, at9);
     expect(kinds(first.messages)).toEqual(['summary']);
     expect(first.messages[0]?.text).toContain('✨');
     expect(first.messages[0]?.text).toContain('all 3 up');
+    expect(first.messages[0]?.text).toContain('last check:');
     expect(first.state.lastSummaryDate).toBe('2026-01-15');
+    expect(first.state.lastRunAt).toBe(at9.toISOString());
 
     const again = step(first.state, results, later);
     expect(kinds(again.messages)).toEqual([]);
@@ -234,7 +243,7 @@ describe('step', () => {
   it('summary timezone is configurable', () => {
     const at9Kyiv = new Date('2026-01-15T07:00:00.000Z');
     const { messages } = step(
-      { lastSummaryDate: null },
+      { lastSummaryDate: null, lastRunAt: null },
       [pass('api')],
       at9Kyiv,
       { tz: 'Europe/Kyiv', summaryHour: 9 },
@@ -245,7 +254,7 @@ describe('step', () => {
   it('summary lists what is down', () => {
     const at9 = new Date('2026-01-15T09:00:00.000Z');
     const { messages } = step(
-      { lastSummaryDate: null },
+      { lastSummaryDate: null, lastRunAt: null },
       [pass('api'), fail('web', 'HTTP 404', WEB), pass('core')],
       at9,
     );
@@ -276,6 +285,7 @@ describe('step', () => {
   it('removing a down check sends UP and leaves state clean', () => {
     const downState: State = {
       lastSummaryDate: TODAY,
+      lastRunAt: null,
       broken: {
         status: 'down',
         fails: 2,
@@ -290,10 +300,14 @@ describe('step', () => {
     expect(state.api).toBeUndefined();
   });
 
-  it('does not write KV when nothing changed', () => {
+  it('writes lastRunAt every tick', () => {
     const { state, messages } = step(empty(), [pass()], T0);
     expect(messages).toEqual([]);
-    expect(stateToSave(empty(), state, true)).toBeNull();
+    expect(state.lastRunAt).toBe(T0.toISOString());
+    expect(stateToSave(empty(), state, true)).not.toBeNull();
+
+    const sameTick = step(state, [pass()], T0);
+    expect(stateToSave(state, sameTick.state, true)).toBeNull();
   });
 
   it('skipped interval keeps fail count and does not alert', () => {
@@ -308,12 +322,68 @@ describe('step', () => {
       downSince: null,
       lastAlertAt: null,
     });
+    expect(skipped.state.lastRunAt).toBe(new Date(T0.getTime() + 60_000).toISOString());
+  });
+});
+
+describe('statusMessage', () => {
+  it('prints never when the worker has not ticked', () => {
+    const text = statusMessage(
+      { lastSummaryDate: null, lastRunAt: null },
+      [{ name: 'api', url: API, everyMinutes: 5 }],
+      T0,
+    );
+    expect(text).toContain('last check: never');
+    expect(text).toContain('api');
+    expect(stripHtml(text)).not.toContain('<');
+  });
+
+  it('shows heartbeat age and down/fail rows', () => {
+    const last = new Date(T0.getTime() - 4 * 60_000);
+    const text = statusMessage(
+      {
+        lastSummaryDate: TODAY,
+        lastRunAt: last.toISOString(),
+        api: {
+          status: 'down',
+          fails: 2,
+          downSince: last.toISOString(),
+          lastAlertAt: last.toISOString(),
+        },
+        web: {
+          status: 'up',
+          fails: 1,
+          downSince: null,
+          lastAlertAt: null,
+        },
+      },
+      [
+        { name: 'api', url: API, everyMinutes: 5 },
+        { name: 'web', url: WEB, everyMinutes: 5 },
+        { name: 'core', url: 'https://core.example.com/healthz', everyMinutes: 5 },
+      ],
+      T0,
+    );
+    expect(text).toContain('last check: 4m ago');
+    expect(text).toContain('down 4m');
+    expect(text).toContain('1 fail(s)');
+    expect(text).toContain('core');
   });
 });
 
 describe('parseState', () => {
   it('returns empty state for junk', () => {
-    expect(parseState(null)).toEqual({ lastSummaryDate: null });
-    expect(parseState('nope')).toEqual({ lastSummaryDate: null });
+    expect(parseState(null)).toEqual({ lastSummaryDate: null, lastRunAt: null });
+    expect(parseState('nope')).toEqual({ lastSummaryDate: null, lastRunAt: null });
+  });
+
+  it('reads lastRunAt from stored json', () => {
+    expect(
+      parseState(JSON.stringify({ lastSummaryDate: TODAY, lastRunAt: T0.toISOString() })),
+    ).toEqual({ lastSummaryDate: TODAY, lastRunAt: T0.toISOString() });
+    expect(parseState(JSON.stringify({ lastSummaryDate: TODAY }))).toEqual({
+      lastSummaryDate: TODAY,
+      lastRunAt: null,
+    });
   });
 });

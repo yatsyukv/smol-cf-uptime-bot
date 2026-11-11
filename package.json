@@ -11,6 +11,7 @@
     "deploy": "bash scripts/deploy.sh",
     "tail": "wrangler tail",
     "chat-id": "bash scripts/get-chat-id.sh",
+    "status": "bash scripts/status.sh",
     "test-message": "bash scripts/test-message.sh"
   },
   "devDependencies": {

@@ -22,6 +22,7 @@ export type CheckState = {
 
 export type State = {
   lastSummaryDate: string | null;
+  lastRunAt: string | null;
   [name: string]: CheckState | string | null;
 };
 
